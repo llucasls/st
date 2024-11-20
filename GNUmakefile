@@ -2,10 +2,7 @@
 # See LICENSE file for copyright and license details.
 .POSIX:
 
-SYSTEM    != uname -s | tr '[:upper:]' '[:lower:]'
-CONFIG_MK != find . -name config_$(SYSTEM).mk
-
-include $(CONFIG_MK)
+include config.mk
 
 SRC = st.c x.c
 OBJ = $(SRC:.c=.o)
@@ -45,7 +42,6 @@ install: st
 	sed "s/VERSION/$(VERSION)/g" < st.1 > $(DESTDIR)$(MANPREFIX)/man1/st.1
 	chmod 644 $(DESTDIR)$(MANPREFIX)/man1/st.1
 	tic -sx st.info
-	mv st.info.cdb ~/.terminfo.cdb
 	@echo Please see the README file regarding the terminfo entry of st.
 
 uninstall:
