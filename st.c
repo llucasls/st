@@ -818,6 +818,9 @@ ttynew(const char *line, char *cmd, const char *out, char **args)
 		execsh(cmd, args);
 		break;
 	default:
+		char buf[32];
+		snprintf(buf, sizeof(buf), "%d", pid);
+		setenv("ST_SHELL_PID", buf, 1);
 #ifdef __OpenBSD__
 		if (pledge("stdio rpath tty proc", NULL) == -1)
 			die("pledge\n");
@@ -2144,6 +2147,59 @@ void
 toggleprinter(const Arg *arg)
 {
 	term.mode ^= MODE_PRINT;
+}
+
+void
+run_command(const Arg *arg)
+{
+	if (arg == NULL)
+		return;
+
+	char *current_dir;
+	char *shell_pid_str = getenv("ST_SHELL_PID");
+	if (shell_pid_str == NULL || strtol(shell_pid_str, NULL, 10) <= 0)
+		shell_pid_str = "self";
+	char link_path[4096];
+	snprintf(link_path, sizeof(link_path), "/proc/%s/cwd", shell_pid_str);
+
+	char buf[4096];
+	ssize_t len = readlink(link_path, buf, sizeof(buf) - 1);
+	if (len == -1) {
+		current_dir = getcwd(buf, sizeof(buf));
+	} else {
+		buf[len] = '\0';
+		current_dir = buf;
+	}
+
+	char *const *argv = arg->v;
+	if (argv == NULL || argv[0] == NULL)
+		return;
+
+	pid_t cmd_pid = fork();
+	switch (cmd_pid) {
+	case -1:
+		perror("fork");
+		return;
+	case 0:
+		if (current_dir != NULL)
+			chdir(current_dir);
+		unsetenv("ST_SHELL_PID");
+		if (setsid() == -1) {
+			perror("setsid");
+			_exit(EXIT_FAILURE);
+		}
+		switch (fork()) {
+		case -1:
+			_exit(EXIT_FAILURE);
+		case 0:
+			execvp(argv[0], argv);
+			_exit(EXIT_FAILURE);
+		default:
+			_exit(EXIT_SUCCESS);
+		}
+	default:
+		waitpid(cmd_pid, NULL, 0);
+	}
 }
 
 void

@@ -25,7 +25,7 @@ typedef struct {
 	uint mod;
 	KeySym keysym;
 	void (*func)(const Arg *);
-	const Arg arg;
+	Arg arg;
 } Shortcut;
 
 typedef struct {
@@ -2164,6 +2164,7 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
+	shortcuts[0].arg.v = argv;
 	xw.l = xw.t = 0;
 	xw.isfixed = False;
 	xsetcursor(cursorshape);

@@ -84,6 +84,7 @@ void draw(void);
 
 void printscreen(const Arg *);
 void printsel(const Arg *);
+void run_command(const Arg *);
 void sendbreak(const Arg *);
 void toggleprinter(const Arg *);
 
