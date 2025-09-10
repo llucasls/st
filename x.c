@@ -2164,7 +2164,11 @@ usage(void)
 int
 main(int argc, char *argv[])
 {
-	shortcuts[0].arg.v = argv;
+	for (size_t i = 0, n = sizeof(shortcuts)/sizeof(shortcuts[0]); i < n; i++) {
+		if (shortcuts[i].func == run_command && shortcuts[i].arg.v == NULL)
+			shortcuts[i].arg.v = argv;
+	}
+
 	xw.l = xw.t = 0;
 	xw.isfixed = False;
 	xsetcursor(cursorshape);
