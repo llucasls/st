@@ -241,7 +241,6 @@ static STREscape strescseq;
 static int iofd = 1;
 static int cmdfd;
 static pid_t pid;
-static pid_t sh_pid = 0;
 
 static const uchar utfbyte[UTF_SIZ + 1] = {0x80,    0, 0xC0, 0xE0, 0xF0};
 static const uchar utfmask[UTF_SIZ + 1] = {0xC0, 0x80, 0xE0, 0xF0, 0xF8};
@@ -819,7 +818,9 @@ ttynew(const char *line, char *cmd, const char *out, char **args)
 		execsh(cmd, args);
 		break;
 	default:
-		sh_pid = pid;
+		char buf[32];
+		snprintf(buf, sizeof(buf), "%d", pid);
+		setenv("ST_SHELL_PID", buf, 1);
 #ifdef __OpenBSD__
 		if (pledge("stdio rpath tty proc", NULL) == -1)
 			die("pledge\n");
@@ -2154,18 +2155,20 @@ run_command(const Arg *arg)
 	if (arg == NULL)
 		return;
 
-	char *current_dir = NULL;
-	if (sh_pid) {
-		char link_path[4096];
-		snprintf(link_path, sizeof(link_path), "/proc/%d/cwd", sh_pid);
-		char buf[4096];
-		ssize_t len = readlink(link_path, buf, sizeof(buf) - 1);
-		if (len == -1) {
-			current_dir = getcwd(buf, sizeof(buf));
-		} else {
-			buf[len] = '\0';
-			current_dir = buf;
-		}
+	char *current_dir;
+	char *shell_pid_str = getenv("ST_SHELL_PID");
+	if (shell_pid_str == NULL || strtol(shell_pid_str, NULL, 10) <= 0)
+		shell_pid_str = "self";
+	char link_path[4096];
+	snprintf(link_path, sizeof(link_path), "/proc/%s/cwd", shell_pid_str);
+
+	char buf[4096];
+	ssize_t len = readlink(link_path, buf, sizeof(buf) - 1);
+	if (len == -1) {
+		current_dir = getcwd(buf, sizeof(buf));
+	} else {
+		buf[len] = '\0';
+		current_dir = buf;
 	}
 
 	char *const *argv = arg->v;
@@ -2180,6 +2183,7 @@ run_command(const Arg *arg)
 	case 0:
 		if (current_dir != NULL)
 			chdir(current_dir);
+		unsetenv("ST_SHELL_PID");
 		if (setsid() == -1) {
 			perror("setsid");
 			_exit(EXIT_FAILURE);
